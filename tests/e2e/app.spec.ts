@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 test("MCP suggestions, favorites, private home persistence and deletion", async ({
   page,
   context,
+  baseURL,
 }) => {
   const bodies: string[] = [];
   page.on("request", (r) => {
@@ -50,7 +51,7 @@ test("MCP suggestions, favorites, private home persistence and deletion", async 
   expect(bodies.join("")).not.toContain("34.701234");
   const isolated = await context.browser()!.newContext();
   const other = await isolated.newPage();
-  await other.goto("http://127.0.0.1:5173/");
+  await other.goto(baseURL!);
   expect(
     await other.evaluate(() => localStorage.getItem("yorimichi.private.v1")),
   ).toBeNull();
@@ -66,11 +67,12 @@ test("MCP suggestions, favorites, private home persistence and deletion", async 
 });
 test("mobile layout and no external requests without consent", async ({
   page,
+  baseURL,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const external: string[] = [];
   page.on("request", (r) => {
-    if (!r.url().startsWith("http://127.0.0.1:5173")) external.push(r.url());
+    if (!r.url().startsWith(baseURL!)) external.push(r.url());
   });
   await page.goto("/");
   await expect(

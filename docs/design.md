@@ -6,9 +6,9 @@ Reactで大阪市周辺の徒歩の寄り道を提案する。対象は緯度34.
 
 ## 構成
 
-- React 19 + TypeScript + Vite：日本語UI、レスポンシブ対応。
+- React 19 + TypeScript + Vite 8：日本語UI、レスポンシブ対応。
 - Leaflet + OpenStreetMap：パン・ズーム、地点マーカー、概略線、地図クリックによる住所の位置指定。
-- MCP TypeScript SDK v1：ブラウザの公式Client → 同一オリジンの `/mcp` → Express + Streamable HTTP。単なるRESTの名称変更ではなく、MCPの初期化・tools/callで呼び出す。
+- MCP：ブラウザの公式SDK v1 Client → 同一オリジンの `/mcp` → Cloudflare Workers + Agentsの `createMcpHandler` + SDK v2サーバー。Streamable HTTPの互換通信を利用。単なるRESTの名称変更ではなく、MCPの初期化・tools/callで呼び出す。
 - `find_spots`：サンプルまたはOverpassの公園・カフェを取得。サーバーは住所名、履歴、正確な出発／目的地を受け取らない。必要な検索範囲を0.01度単位で外側に丸めて送信。
 - ルートの比較・履歴・お気に入りの処理はブラウザ内。
 - LLMや有料APIキーは不要。開発時はContext7 MCPを用いてSDK資料を確認。
@@ -32,13 +32,14 @@ Reactで大阪市周辺の徒歩の寄り道を提案する。対象は緯度34.
 - 正確な座標はブラウザ内で計算に使用。MCPは大まかな範囲を受信するため、通信が完全匿名という意味ではない。
 - 地図は初期状態で外部タイルを読み込まない。利用者が地図表示を有効にするとOSMへ表示範囲とIPアドレスを送信する。実データ検索には同設定を必要とする。
 - Google Mapsへのリンクには出発／目的地／経由地の座標を含む。ユーザーがリンクを開く前に画面で説明する。
-- サーバーはループバックで待機。MCPのOrigin・Hostを検証、リクエスト本文16KB上限、JSONスキーマで入力検証、`Cache-Control: no-store`。住所やリクエスト本文をログに出さない。
-- インターネット公開時はHTTPS、認証／レート制限、プロキシのログ抑制、Host/Originの明示設定、共有端末での分離方法を追加設計する。現状はローカル実行向け。
+- 開発・プレビューも公式Viteプラグインのworkerd上で動作する。公開時はWorkersとStatic Assetsで画面とMCPを同時配信。MCPのOrigin・Hostを検証、実際のリクエスト本文をUTF-8バイト数で16KBに制限、JSONスキーマで入力検証、`Cache-Control: no-store`。住所やリクエスト本文をログに出さない。
+- 公開版はHTTPSのworkers.dev、またはAPP_ORIGINに登録したカスタムドメインを利用する。同一オリジン以外のブラウザ通信は拒否。Cloudflareのレート制限を利用し、Workers Observabilityは無効。ログイン不要の公開読み取りツールであり、Origin制限は認証ではない。詳細は [deployment.md](deployment.md)。
+- Cloudflareが配信・MCP通信を処理し、接続元IPから生成した日単位ハッシュをレート制限カウンターで一時利用する。これは完全な匿名化ではない。アプリのプロフィールやDBには保存しない。
 
 ## スポットデータ
 
 - サンプルモードは操作確認用。公園の一部は実在地名だが、喫茶店・猫カフェは架空。必ずサンプルと表示し、営業情報として扱わない。
-- 実データは利用者が検索ボタンを押した時のみOverpassから取得。公園とカフェ最大200件、タイムアウト25秒、同時リクエスト抑制と2秒間隔。検索結果の網羅性は保証しない。
+- 実データは利用者が検索ボタンを押した時のみOverpassから取得。公園とカフェ最大200件、タイムアウト25秒。WorkersのRate Limitingバインディングで接続元ネットワーク単位6回／60秒、拠点全体20回／60秒に抑える。グローバル変数による制御は分散実行で有効でないため廃止。検索結果の網羅性は保証しない。
 - 猫スポットはカフェのタグまたは名前による猫カフェ判定。野良猫の所在地を推測して表示しない。
 - 営業時間・閉店・予約要否は検証していない。OSMの情報として明示する。
 - 外部サービスに失敗した際は架空データへ黙って切り替えず、エラーとサンプルへの手動切り替えを案内。
@@ -63,3 +64,9 @@ Haversineによる地点間直線距離を1.3倍したものを概算徒歩距�
 - [OpenStreetMapタイル利用方針](https://operations.osmfoundation.org/policies/tiles/)
 - [Nominatim利用方針（採用していない）](https://operations.osmfoundation.org/policies/nominatim/)
 - [Overpass API](https://dev.overpass-api.de/overpass-doc/en/)
+
+## Workers移行（2026-09-09）
+
+Express・Node.jsのlisten・Node専用ソケット調整を廃止。デプロイ設定の原本は `wrangler.jsonc`。サンプルと実スポット取得ロジックは `server/mcp.ts`、公開時の入力制限・Origin検証は `server/security.ts`、入口は `server/index.ts`。Static Assetsと同一オリジンなのでフロントの `/mcp` 接続やlocalStorageのキーは変更しない。サーバーのセッション／データ永続化用のD1・KV・R2・Durable Objectsは不要。
+
+開発ツールのMiniflareが使用するsharpは修正版 `^0.35.4` にoverrideしている。SDK v1はブラウザクライアントの互換性維持用、サーバーはSDK v2を使用する。

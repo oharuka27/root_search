@@ -3,6 +3,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 test("MCP rejects untrusted origins and oversized search regions", async ({
   request,
+  baseURL,
 }) => {
   const forbidden = await request.post("/mcp", {
     headers: { Origin: "https://untrusted.example" },
@@ -12,7 +13,7 @@ test("MCP rejects untrusted origins and oversized search regions", async ({
   const client = new Client({ name: "test-client", version: "1.0.0" });
   try {
     await client.connect(
-      new StreamableHTTPClientTransport(new URL("http://127.0.0.1:3001/mcp")),
+      new StreamableHTTPClientTransport(new URL("/mcp", baseURL)),
     );
     const tools = await client.listTools();
     expect(tools.tools.map((t) => t.name)).toContain("find_spots");
@@ -31,7 +32,7 @@ test("MCP rejects untrusted origins and oversized search regions", async ({
     await client.close();
   }
 });
-test("live Overpass smoke test (opt-in)", async () => {
+test("live Overpass smoke test (opt-in)", async ({ baseURL }) => {
   test.skip(
     !process.env.RUN_LIVE,
     "External service availability is not part of the default test suite.",
@@ -39,7 +40,7 @@ test("live Overpass smoke test (opt-in)", async () => {
   const client = new Client({ name: "smoke-test", version: "1.0.0" });
   try {
     await client.connect(
-      new StreamableHTTPClientTransport(new URL("http://127.0.0.1:3001/mcp")),
+      new StreamableHTTPClientTransport(new URL("/mcp", baseURL)),
     );
     const result = await client.callTool({
       name: "find_spots",
@@ -63,4 +64,30 @@ test("live Overpass smoke test (opt-in)", async () => {
   } finally {
     await client.close();
   }
+});
+
+test("Worker routes MCP before SPA fallback and enforces HTTP guards", async ({
+  request,
+}) => {
+  const navigation = await request.get("/mcp", {
+    headers: { Accept: "text/html", "Sec-Fetch-Mode": "navigate" },
+  });
+  expect(navigation.status()).toBe(405);
+  expect(navigation.headers()["cache-control"]).toBe("no-store");
+  expect((await request.get("/mcp/unknown")).status()).toBe(404);
+  const malformed = await request.post("/mcp", {
+    headers: { "Content-Type": "application/json" },
+    data: "{bad",
+  });
+  expect(malformed.status()).toBe(400);
+  const large = await request.post("/mcp", {
+    data: { text: "あ".repeat(6000) },
+  });
+  expect(large.status()).toBe(413);
+  const wrongType = await request.post("/mcp", {
+    headers: { "Content-Type": "text/plain" },
+    data: "{}",
+  });
+  expect(wrongType.status()).toBe(415);
+  expect(wrongType.headers()["access-control-allow-origin"]).toBeUndefined();
 });

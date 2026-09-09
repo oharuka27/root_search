@@ -1,17 +1,18 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { cloudflare } from "@cloudflare/vite-plugin";
 export default defineConfig({
-  plugins: [react()],
-  server: { proxy: { "/mcp": "http://127.0.0.1:3001" } },
+  plugins: [react(), cloudflare()],
+  server: { host: "127.0.0.1", port: 5173, strictPort: true },
+  preview: { host: "127.0.0.1", port: 4173, strictPort: true },
   build: {
-    rollupOptions: {
+    rolldownOptions: {
       output: {
-        manualChunks: {
-          mcp: [
-            "@modelcontextprotocol/sdk/client/index.js",
-            "@modelcontextprotocol/sdk/client/streamableHttp.js",
+        codeSplitting: {
+          groups: [
+            { name: "mcp", test: /node_modules\/@modelcontextprotocol\// },
+            { name: "map", test: /node_modules\/leaflet\// },
           ],
-          map: ["leaflet"],
         },
       },
     },

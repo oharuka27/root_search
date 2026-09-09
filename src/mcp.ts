@@ -1,5 +1,8 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import {
+  StreamableHTTPClientTransport,
+  StreamableHTTPError,
+} from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { z } from "zod";
 import type { Place, Spot } from "../shared/data";
 const resultSchema = z.object({
@@ -55,6 +58,13 @@ export async function fetchSpots(
     const text = content.find((c) => c.type === "text")?.text;
     if (result.isError) throw new Error(text || "MCPエラー");
     return resultSchema.parse(JSON.parse(text || "{}")).spots;
+  } catch (error) {
+    if (error instanceof StreamableHTTPError && error.code === 429) {
+      throw new Error(
+        "アクセスが集中しています。1分ほど待ってから再検索してください。",
+      );
+    }
+    throw error;
   } finally {
     await client.close();
   }
