@@ -38,7 +38,7 @@ Cloudflareの Workers & Pages でGitリポジトリを接続し、Workers Builds
 
 | 項目                    | 既定値・用途                                                                                                         |
 | ----------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `vars.OVERPASS_URL`     | `https://overpass-api.de/api/interpreter`。管理者が信頼するOverpassエンドポイント。ユーザー入力で変更できない。      |
+| `vars.OVERPASS_URL`     | `https://overpass.private.coffee/api/interpreter`。管理者が信頼するOverpassエンドポイント。ユーザー入力で変更できない。 |
 | `vars.APP_ORIGIN`       | カスタムドメインを使う場合に追加する完全なオリジン（例：`https://walk.example.com`）。パスや末尾のスラッシュは不要。 |
 | `MCP_LIMITER`           | 接続元ネットワークのハッシュごとに120リクエスト／60秒。MCP初期化・通知も含む。                                       |
 | `LIVE_LIMITER`          | 同ハッシュごとに実スポット取得6回／60秒。                                                                            |
