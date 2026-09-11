@@ -12,7 +12,7 @@
     "run_worker_first": ["/mcp", "/mcp/*"],
   },
   "vars": {
-    "OVERPASS_URL": "https://overpass.private.coffee/api/interpreter",
+    "OVERPASS_URL": "https://overpass-api.de/api/interpreter",
   },
   "ratelimits": [
     {

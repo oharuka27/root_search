@@ -55,8 +55,7 @@ export function createServer(env: Env, clientKey: string) {
           const bbox = `${south},${west},${north},${east}`;
           const query = `[out:json][timeout:20];(nwr[leisure=park](${bbox});nwr[amenity=cafe](${bbox}););out center 200;`;
           const url = new URL(
-            env.OVERPASS_URL ||
-              "https://overpass.private.coffee/api/interpreter",
+            env.OVERPASS_URL || "https://overpass-api.de/api/interpreter",
           );
           url.searchParams.set("data", query);
           const response = await fetch(url, {
