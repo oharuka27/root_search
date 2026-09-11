@@ -65,7 +65,14 @@ export function createServer(env: Env, clientKey: string) {
             },
             signal: AbortSignal.timeout(25000),
           });
-          if (!response.ok) throw new Error("upstream");
+          if (!response.ok) {
+            console.error("Overpass request failed", {
+              status: response.status,
+              statusText: response.statusText,
+              endpoint: url.origin,
+            });
+            throw new Error(`Overpass HTTP ${response.status}`);
+          }
           const data = (await response.json()) as {
             elements: Array<{
               type: string;
@@ -77,7 +84,12 @@ export function createServer(env: Env, clientKey: string) {
             }>;
             remark?: string;
           };
-          if (data.remark) throw new Error("partial");
+          if (data.remark) {
+            console.error("Overpass returned a partial response", {
+              endpoint: url.origin,
+            });
+            throw new Error("Overpass partial response");
+          }
           spots = data.elements.flatMap((e) => {
             const tags = e.tags || {};
             const lat = e.lat ?? e.center?.lat;
@@ -102,7 +114,11 @@ export function createServer(env: Env, clientKey: string) {
               } as Spot,
             ];
           });
-        } catch {
+        } catch (error) {
+          console.error("Overpass lookup error", {
+            name: error instanceof Error ? error.name : "UnknownError",
+            message: error instanceof Error ? error.message : String(error),
+          });
           return {
             isError: true,
             content: [
