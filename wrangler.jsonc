@@ -13,6 +13,7 @@
   },
   "vars": {
     "OVERPASS_URL": "https://overpass-api.de/api/interpreter",
+    "APP_ORIGIN": "https://yorimichi.mitenecolab.com",
   },
   "ratelimits": [
     {
